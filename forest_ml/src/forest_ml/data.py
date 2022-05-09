@@ -10,7 +10,7 @@ def get_dataset(
     csv_path: Path, random_state: int,  test_split_ratio: float, use_tsr: bool
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
     dataset = pd.read_csv(csv_path)
-    click.echo(f"Dataset shape: {dataset.shape}.")
+    click.echo(f"Dataset shape: {dataset.shape}")
     features = dataset.drop("Cover_Type", axis=1)
     target = dataset["Cover_Type"]
     if use_tsr is not False:

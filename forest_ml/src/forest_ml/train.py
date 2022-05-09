@@ -3,7 +3,7 @@ from joblib import dump
 
 import click
 import numpy as np
-# import mlflow
+import mlflow
 # import mlflow.sklearn
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import cross_validate
@@ -82,33 +82,44 @@ def train(
     foldcnt: int,
     logreg_c: float,
 ) -> None:
-    pipeline = create_pipeline(use_scaler, max_iter, logreg_c, random_state)
-    if use_tsr is not False:
-        features_train, features_val, target_train, target_val = get_dataset(
-            dataset_path,
-            random_state,
-            test_split_ratio,
-            use_tsr
-        )
-        click.echo(f"Features_train shape: {features_train.shape}.")
-        pipeline.fit(features_train, target_train)
-        accuracy = accuracy_score(target_val, pipeline.predict(features_val))
-        click.echo(f"Accuracy: {accuracy}.")
-        dump(pipeline, save_model_path)
-        click.echo(f"Model is saved to {save_model_path}.")
+    with mlflow.start_run():
+        pipeline = create_pipeline(use_scaler, max_iter, logreg_c, random_state)
+        if use_tsr is not False:
+            features_train, features_val, target_train, target_val = get_dataset(
+                dataset_path,
+                random_state,
+                test_split_ratio,
+                use_tsr
+            )
+            click.echo(f"Features_train shape: {features_train.shape}.")
+            pipeline.fit(features_train, target_train)
+            accuracy = accuracy_score(target_val, pipeline.predict(features_val))
+            click.echo(f"Accuracy: {accuracy}.")
+            dump(pipeline, save_model_path)
+            click.echo(f"Model is saved to {save_model_path}.")
 
-    else:
-        features_train, target_train = get_dataset(
-            dataset_path,
-            random_state,
-            test_split_ratio,
-            use_tsr
-        )
-        scoring = ['accuracy', 'f1_macro', 'roc_auc_ovr']
-        scores  = cross_validate(pipeline, features_train, target_train, cv=foldcnt, scoring=scoring)
-        for i in scoring:
-            click.echo('{} = {}'.format(i, np.mean(scores['test_' + i])))
-    # with mlflow.start_run():
+        else:
+            features_train, target_train = get_dataset(
+                dataset_path,
+                random_state,
+                test_split_ratio,
+                use_tsr
+            )
+            scoring = ['accuracy', 'f1_macro', 'roc_auc_ovr']
+            mlflow.log_param("model", pipeline['classifier']) 
+            mlflow.log_param("use_scaler", use_scaler)
+            mlflow.log_param("max_iter", max_iter)
+            mlflow.log_param("logreg_c", logreg_c)
+            mlflow.log_param("N of folds", foldcnt)
+            scores  = cross_validate(pipeline, features_train, target_train, cv=foldcnt, scoring=scoring)
+            for i in scoring:
+                click.echo('{} = {}'.format(i, np.mean(scores['test_' + i])))
+                mlflow.log_metric(i, np.mean(scores['test_' + i]))
+            
+            
+            pipeline.fit(features_train, target_train)
+            dump(pipeline, save_model_path)
+            click.echo(f"Model is saved to {save_model_path}.")
     
     # print(pipeline)
     # 
