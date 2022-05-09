@@ -59,6 +59,12 @@ from .pipeline import create_pipeline
     show_default=True,
 )
 @click.option(
+    "--fs",
+    default=False,
+    type=bool,
+    show_default=True,
+)
+@click.option(
     "--s",
     default='ss',
     type=str,
@@ -95,8 +101,8 @@ from .pipeline import create_pipeline
     show_default=True,
 )
 @click.option(
-    "--m_depth",
-    default=5,
+    "--m-depth",
+    default=15,
     type=int,
     show_default=True,
 )
@@ -114,7 +120,8 @@ def train(
     s: str,
     n:int, 
     criterion: str,
-    m_depth: int
+    m_depth: int,
+    fs: bool
 ) -> None:
     with mlflow.start_run():
         if criterion not in ['gini', 'entropy']:
@@ -123,7 +130,7 @@ def train(
             raise click.BadParameter("model takes values 'logreg' for LogisticRegression or 'rf' for RandomForestClassifier")
         if s not in ['ss', 'mm']:
             raise click.BadParameter("scaler takes values 'ss' for StandardScaler or 'mm' for MinMaxScaler")
-        pipeline = create_pipeline(use_scaler, s, m, max_iter, logreg_c, random_state, n, criterion, m_depth)
+        pipeline = create_pipeline(use_scaler, s, m, max_iter, logreg_c, random_state, n, criterion, m_depth, fs)
         if use_tsr is not False:
             features_train, features_val, target_train, target_val = get_dataset(
                 dataset_path,
@@ -150,6 +157,8 @@ def train(
             mlflow.log_param("N of folds", foldcnt)
             mlflow.log_param("use_scaler", use_scaler)
             mlflow.log_param("scaler", pipeline['scaler'])
+            if fs:
+                mlflow.log_param("feature_selection", pipeline['feature_selection'])
             if m == 'logreg':  
                 mlflow.log_param("max_iter", max_iter)
                 mlflow.log_param("logreg_c", logreg_c)
@@ -161,8 +170,7 @@ def train(
             for i in scoring:
                 click.echo('{} = {}'.format(i, np.mean(scores['test_' + i])))
                 mlflow.log_metric(i, np.mean(scores['test_' + i]))
-                
-                
+                    
             pipeline.fit(features_train, target_train)
             dump(pipeline, save_model_path)
             click.echo(f"Model is saved to {save_model_path}.")

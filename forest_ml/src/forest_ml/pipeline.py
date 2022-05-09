@@ -2,8 +2,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.feature_selection import SelectFromModel
-
+from sklearn.feature_selection import SelectFromModel 
 
 def create_pipeline(
     use_scaler: bool, s:str, m:str, max_iter: int, logreg_C: float, random_state: int, n:int, crit: str, m_depth: int, fs: bool
@@ -22,19 +21,19 @@ def create_pipeline(
             pipeline_steps.append(("scaler", StandardScaler()))
         elif s == 'mm':
             pipeline_steps.append(("scaler", MinMaxScaler()))
-    # if fs:
-    #     pipeline_steps.append(
-    #         (
-    #             "feature_selection",
-    #             SequentialFeatureSelector(),
-    #         )
-    #     )
-    
+    if fs:
         pipeline_steps.append(
             (
-                "classifier"
-                , model
+                "feature_selection",
+                 SelectFromModel(LogisticRegression(C=1, max_iter=max_iter, penalty='l2')),
             )
         )
+    
+    pipeline_steps.append(
+        (
+            "classifier"
+            , model
+        )
+    )
 
     return Pipeline(steps=pipeline_steps)
