@@ -60,6 +60,12 @@ from .pipeline import create_pipeline
     show_default=True,
 )
 @click.option(
+    "--foldcnt",
+    default=5,
+    type=int,
+    show_default=True,
+)
+@click.option(
     "--logreg-c",
     default=1.0,
     type=float,
@@ -73,6 +79,7 @@ def train(
     use_scaler: bool,
     use_tsr: bool,
     max_iter: int,
+    foldcnt: int,
     logreg_c: float,
 ) -> None:
     pipeline = create_pipeline(use_scaler, max_iter, logreg_c, random_state)
@@ -97,10 +104,10 @@ def train(
             test_split_ratio,
             use_tsr
         )
-        scoring = ['accuracy']#, 'precision', 'recall']
-        scores  = cross_validate(pipeline, features_train, target_train, cv=5, scoring=scoring)
+        scoring = ['accuracy', 'f1_macro', 'roc_auc_ovr']
+        scores  = cross_validate(pipeline, features_train, target_train, cv=foldcnt, scoring=scoring)
         for i in scoring:
-            print(scores['test_' + i])
+            click.echo('{} = {}'.format(i, np.mean(scores['test_' + i])))
     # with mlflow.start_run():
     
     # print(pipeline)
