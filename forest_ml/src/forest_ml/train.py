@@ -2,6 +2,7 @@ from pathlib import Path
 from joblib import dump
 
 import click
+import numpy as np
 # import mlflow
 # import mlflow.sklearn
 from sklearn.metrics import accuracy_score
@@ -74,6 +75,7 @@ def train(
     max_iter: int,
     logreg_c: float,
 ) -> None:
+    pipeline = create_pipeline(use_scaler, max_iter, logreg_c, random_state)
     if use_tsr is not False:
         features_train, features_val, target_train, target_val = get_dataset(
             dataset_path,
@@ -81,6 +83,13 @@ def train(
             test_split_ratio,
             use_tsr
         )
+        click.echo(f"Features_train shape: {features_train.shape}.")
+        pipeline.fit(features_train, target_train)
+        accuracy = accuracy_score(target_val, pipeline.predict(features_val))
+        click.echo(f"Accuracy: {accuracy}.")
+        dump(pipeline, save_model_path)
+        click.echo(f"Model is saved to {save_model_path}.")
+
     else:
         features_train, target_train = get_dataset(
             dataset_path,
@@ -88,19 +97,20 @@ def train(
             test_split_ratio,
             use_tsr
         )
+        scoring = ['accuracy']#, 'precision', 'recall']
+        scores  = cross_validate(pipeline, features_train, target_train, cv=5, scoring=scoring)
+        for i in scoring:
+            print(scores['test_' + i])
     # with mlflow.start_run():
-    pipeline = create_pipeline(use_scaler, max_iter, logreg_c, random_state)
-    # print(pipeline)
-    print(features_train.shape, target_train.shape)
-    # cv_results = cross_validate(pipeline, features_train, target_train, cv=5)
-    # print(cv_results)
-    pipeline.fit(features_train, target_train)
     
-    # accuracy = accuracy_score(target_val, pipeline.predict(features_val))
+    # print(pipeline)
+    # 
+    # print(cv_results)
+    
+    
+    # 
     # mlflow.log_param("use_scaler", use_scaler)
     # mlflow.log_param("max_iter", max_iter)
     # mlflow.log_param("logreg_c", logreg_c)
     # mlflow.log_metric("accuracy", accuracy)
-    # click.echo(f"Accuracy: {accuracy}.")
-    dump(pipeline, save_model_path)
-    click.echo(f"Model is saved to {save_model_path}.")
+    # 
