@@ -84,7 +84,7 @@ from .pipeline import create_pipeline
 )
 @click.option(
     "--criterion",
-    default= 'gini',
+    default= 'entropy',
     type=str,
     show_default=True,
 )
@@ -117,6 +117,12 @@ def train(
     m_depth: int
 ) -> None:
     with mlflow.start_run():
+        if criterion not in ['gini', 'entropy']:
+            raise click.BadParameter("criterion takes values 'gini' or 'entropy'")
+        if m not in ['logreg', 'rf']:
+            raise click.BadParameter("model takes values 'logreg' for LogisticRegression or 'rf' for RandomForestClassifier")
+        if s not in ['ss', 'mm']:
+            raise click.BadParameter("scaler takes values 'ss' for StandardScaler or 'mm' for MinMaxScaler")
         pipeline = create_pipeline(use_scaler, s, m, max_iter, logreg_c, random_state, n, criterion, m_depth)
         if use_tsr is not False:
             features_train, features_val, target_train, target_val = get_dataset(
@@ -143,6 +149,7 @@ def train(
             mlflow.log_param("model", pipeline['classifier'])
             mlflow.log_param("N of folds", foldcnt)
             mlflow.log_param("use_scaler", use_scaler)
+            mlflow.log_param("scaler", pipeline['scaler'])
             if m == 'logreg':  
                 mlflow.log_param("max_iter", max_iter)
                 mlflow.log_param("logreg_c", logreg_c)
