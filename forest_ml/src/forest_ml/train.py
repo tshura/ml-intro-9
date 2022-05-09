@@ -27,7 +27,12 @@ from .pipeline import create_pipeline
     type=click.Path(dir_okay=False, writable=True, path_type=Path),
     show_default=True,
 )
-
+@click.option(
+    "--m",
+    default='logreg',
+    type=str,
+    show_default=True,
+)
 @click.option(
     "--random-state",
     default=42,
@@ -54,6 +59,12 @@ from .pipeline import create_pipeline
     show_default=True,
 )
 @click.option(
+    "--s",
+    default='ss',
+    type=str,
+    show_default=True,
+)
+@click.option(
     "--max-iter",
     default=500,
     type=int,
@@ -71,6 +82,24 @@ from .pipeline import create_pipeline
     type=float,
     show_default=True,
 )
+@click.option(
+    "--criterion",
+    default= 'gini',
+    type=str,
+    show_default=True,
+)
+@click.option(
+    "--n",
+    default=100,
+    type=int,
+    show_default=True,
+)
+@click.option(
+    "--m_depth",
+    default=5,
+    type=int,
+    show_default=True,
+)
 def train(
     dataset_path: Path,
     save_model_path: Path,
@@ -81,9 +110,14 @@ def train(
     max_iter: int,
     foldcnt: int,
     logreg_c: float,
+    m: str,
+    s: str,
+    n:int, 
+    criterion: str,
+    m_depth: int
 ) -> None:
     with mlflow.start_run():
-        pipeline = create_pipeline(use_scaler, max_iter, logreg_c, random_state)
+        pipeline = create_pipeline(use_scaler, s, m, max_iter, logreg_c, random_state, n, criterion, m_depth)
         if use_tsr is not False:
             features_train, features_val, target_train, target_val = get_dataset(
                 dataset_path,
@@ -106,29 +140,25 @@ def train(
                 use_tsr
             )
             scoring = ['accuracy', 'f1_macro', 'roc_auc_ovr']
-            mlflow.log_param("model", pipeline['classifier']) 
-            mlflow.log_param("use_scaler", use_scaler)
-            mlflow.log_param("max_iter", max_iter)
-            mlflow.log_param("logreg_c", logreg_c)
+            mlflow.log_param("model", pipeline['classifier'])
             mlflow.log_param("N of folds", foldcnt)
+            mlflow.log_param("use_scaler", use_scaler)
+            if m == 'logreg':  
+                mlflow.log_param("max_iter", max_iter)
+                mlflow.log_param("logreg_c", logreg_c)
+            if m == 'rf':   
+                mlflow.log_param("max_depth", m_depth)
+                mlflow.log_param("n_estimators", n)
+                mlflow.log_param("criterion", criterion)
             scores  = cross_validate(pipeline, features_train, target_train, cv=foldcnt, scoring=scoring)
             for i in scoring:
                 click.echo('{} = {}'.format(i, np.mean(scores['test_' + i])))
                 mlflow.log_metric(i, np.mean(scores['test_' + i]))
-            
-            
+                
+                
             pipeline.fit(features_train, target_train)
             dump(pipeline, save_model_path)
             click.echo(f"Model is saved to {save_model_path}.")
+           
+                
     
-    # print(pipeline)
-    # 
-    # print(cv_results)
-    
-    
-    # 
-    # mlflow.log_param("use_scaler", use_scaler)
-    # mlflow.log_param("max_iter", max_iter)
-    # mlflow.log_param("logreg_c", logreg_c)
-    # mlflow.log_metric("accuracy", accuracy)
-    # 
