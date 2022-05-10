@@ -5,7 +5,7 @@ import click
 import numpy as np
 import mlflow
 # import mlflow.sklearn
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.model_selection import cross_validate
 from sklearn.model_selection import KFold, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
@@ -195,7 +195,8 @@ def train(
                 )
             cv_outer = KFold(n_splits=10, shuffle=True, random_state=random_state)
             # enumerate splits
-            outer_results = list()
+            outer_results_acc = list()
+            outer_results_ras = list()
             print(type(features_train))
             for train_ix, test_ix in cv_outer.split(features_train):
                 # split data
@@ -203,29 +204,28 @@ def train(
                 y_train, y_test = target_train.iloc[train_ix], target_train.iloc[test_ix]
                 # configure the cross-validation procedure
                 cv_inner = KFold(n_splits=3, shuffle=True, random_state=random_state)
-                # define the model
-                model = RandomForestClassifier(random_state=random_state)
                 # define search space
                 space = dict()
-                # space['fs'] = [False]
-                space['n_estimators'] = [10, 100, 500]
-                space['max_depth'] = [2, 4, 6]
+                space['classifier__n_estimators'] = [10, 100, 500]
+                space['classifier__max_depth'] = [2, 4, 6]
                 # define search
-                search = GridSearchCV(model, space, scoring='accuracy', cv=cv_inner, refit=True)
+                search = GridSearchCV(pipeline, space, scoring='accuracy', cv=cv_inner, refit=True)
                 # execute search
                 result = search.fit(X_train, y_train)
                 # get the best performing model fit on the whole training set
                 best_model = result.best_estimator_
-                print(best_model)
                 # evaluate model on the hold out dataset
                 yhat = best_model.predict(X_test)
+                y_pred = best_model.predict_proba(X_test)
                 # evaluate the model
                 acc = accuracy_score(y_test, yhat)
+                ras = roc_auc_score(y_test, y_pred, multi_class='ovr')
                 # store the result
-                outer_results.append(acc)
+                outer_results_acc.append(acc)
+                outer_results_acc.append(ras)
                 # report progress
-                print('>acc=%.3f, est=%.3f, cfg=%s' % (acc, result.best_score_, result.best_params_))
-            print('Accuracy: %.3f (%.3f)' % (np.mean(outer_results), np.std(outer_results)))
+            print('Accuracy: %.3f ' % (np.mean(outer_results_acc)))
+            print('Roc Auc: %.3f (%.3f)' % (np.mean(outer_results_acc), np.std(outer_results_acc)))
 
                 
     
