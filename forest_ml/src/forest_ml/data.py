@@ -6,8 +6,9 @@ import click
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+
 def get_dataset(
-    csv_path: Path, random_state: int,  test_split_ratio: float, use_tsr: bool
+    csv_path: Path, random_state: int, test_split_ratio: float, use_tsr: bool
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
     dataset = pd.read_csv(csv_path)
     click.echo(f"Dataset shape: {dataset.shape}")
