@@ -211,7 +211,7 @@ def train(
                 # define search space
                 space = dict()
                 if m == 'rf':
-                    space['classifier__n_estimators'] = [10, 100, 500]
+                    space['classifier__n_estimators'] = [100, 200, 500]
                     space['classifier__max_depth'] = [2, 4, 6]
                 elif m == 'logreg': 
                     space['classifier__max_iter'] = [300, 500, 1000]
@@ -239,6 +239,23 @@ def train(
             mlflow.log_metric("accuracy", np.mean(outer_results_acc))
             mlflow.log_metric("f1_macro", np.mean(outer_results_f1))
             mlflow.log_metric("roc_auc_ovr", np.mean(outer_results_ras))
+            space = dict()
+            cv_inner = KFold(n_splits=3, shuffle=True, random_state=random_state)
+            if m == 'rf':
+                    space['classifier__n_estimators'] = [100, 200, 500]
+                    space['classifier__max_depth'] = [2, 4, 6, 10, 15]
+            elif m == 'logreg': 
+                    space['classifier__max_iter'] = [300, 500, 1000]
+                    space['classifier__C'] = [0.1, 1, 10]
+            click.echo(f"Now we are going to forget about Nested CV and get the best params through GridSearchCV and save this model as our best model.")
+            search = GridSearchCV(pipeline, space, scoring='accuracy', cv=cv_inner, refit=True)
+            result = search.fit(features_train, target_train)
+            # get the best performing model fit on the whole training set
+            best_model = result.best_estimator_
+            print(best_model)
+            best_model.fit(features_train, target_train)
+            dump(best_model, save_model_path)
+            click.echo(f"Model is saved to {save_model_path}.")
             
 
                 
