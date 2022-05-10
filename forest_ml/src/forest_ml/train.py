@@ -174,7 +174,7 @@ def train(
                 if m == 'logreg':  
                     mlflow.log_param("max_iter", max_iter)
                     mlflow.log_param("logreg_c", logreg_c)
-                if m == 'rf':   
+                elif m == 'rf':   
                     mlflow.log_param("max_depth", max_depth)
                     mlflow.log_param("n_estimators", n)
                     mlflow.log_param("criterion", criterion)
@@ -192,12 +192,13 @@ def train(
                     random_state,
                     test_split_ratio,
                     use_tsr
-                )
+                )      
             cv_outer = KFold(n_splits=10, shuffle=True, random_state=random_state)
-            # enumerate splits
             outer_results_acc = list()
             outer_results_ras = list()
             outer_results_f1 = list()
+            mlflow.log_param("nested_cv", use_ncv)
+            mlflow.log_param("model", pipeline['classifier'])
             for train_ix, test_ix in cv_outer.split(features_train):
                 # split data
                 X_train, X_test = features_train.iloc[train_ix, :], features_train.iloc[test_ix, :]
@@ -206,8 +207,12 @@ def train(
                 cv_inner = KFold(n_splits=3, shuffle=True, random_state=random_state)
                 # define search space
                 space = dict()
-                space['classifier__n_estimators'] = [10, 100, 500]
-                space['classifier__max_depth'] = [2, 4, 6]
+                if m == 'rf':
+                    space['classifier__n_estimators'] = [10, 100, 500]
+                    space['classifier__max_depth'] = [2, 4, 6]
+                elif m == 'logreg': 
+                    space['classifier__max_iter'] = [300, 500, 1000]
+                    space['classifier__C'] = [0.1, 1, 10]
                 # define search
                 search = GridSearchCV(pipeline, space, scoring='accuracy', cv=cv_inner, refit=True)
                 # execute search
@@ -227,8 +232,7 @@ def train(
                 outer_results_f1.append(f1)
             print('Accuracy: %.3f' % (np.mean(outer_results_acc)))
             print('Roc Auc: %.3f' % (np.mean(outer_results_ras)))
-            print('F1 score: %.3f' % (np.mean(outer_results_f1)))
-            mlflow.log_param("model", 'nestedcv ' + pipeline['classifier'])
+            print('F1 score: %.3f' % (np.mean(outer_results_f1)))       
             mlflow.log_metric("accuracy", np.mean(outer_results_acc))
             mlflow.log_metric("f1_macro", np.mean(outer_results_f1))
             mlflow.log_metric("roc_auc_ovr", np.mean(outer_results_ras))
