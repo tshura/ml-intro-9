@@ -5,7 +5,7 @@ import click
 import numpy as np
 import mlflow
 # import mlflow.sklearn
-from sklearn.metrics import accuracy_score, roc_auc_score
+from sklearn.metrics import accuracy_score, roc_auc_score, f1_score
 from sklearn.model_selection import cross_validate
 from sklearn.model_selection import KFold, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
@@ -197,7 +197,7 @@ def train(
             # enumerate splits
             outer_results_acc = list()
             outer_results_ras = list()
-            print(type(features_train))
+            outer_results_f1 = list()
             for train_ix, test_ix in cv_outer.split(features_train):
                 # split data
                 X_train, X_test = features_train.iloc[train_ix, :], features_train.iloc[test_ix, :]
@@ -220,12 +220,14 @@ def train(
                 # evaluate the model
                 acc = accuracy_score(y_test, yhat)
                 ras = roc_auc_score(y_test, y_pred, multi_class='ovr')
+                f1 = f1_score(y_test, yhat, average='macro')
                 # store the result
                 outer_results_acc.append(acc)
-                outer_results_acc.append(ras)
-                # report progress
-            print('Accuracy: %.3f ' % (np.mean(outer_results_acc)))
-            print('Roc Auc: %.3f (%.3f)' % (np.mean(outer_results_acc), np.std(outer_results_acc)))
+                outer_results_ras.append(ras)
+                outer_results_f1.append(f1)
+            print('Accuracy: %.3f' % (np.mean(outer_results_acc)))
+            print('Roc Auc: %.3f' % (np.mean(outer_results_ras)))
+            print('F1 score: %.3f' % (np.mean(outer_results_f1)))
 
                 
     
