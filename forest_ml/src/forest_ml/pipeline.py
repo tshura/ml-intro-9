@@ -5,7 +5,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.feature_selection import SelectFromModel 
 
 def create_pipeline(
-    use_scaler: bool, s:str, m:str, max_iter: int, logreg_C: float, random_state: int, n:int, crit: str, m_depth: int, fs: bool
+    use_scaler: bool, s:str, m:str, max_iter: int, logreg_C: float, random_state: int, n:int, crit: str, max_depth: int, fs: bool
 ) -> Pipeline:
     pipeline_steps = []
     if m == 'logreg':
@@ -14,7 +14,7 @@ def create_pipeline(
                 )
     elif m == 'rf':
         model =  RandomForestClassifier(
-                    random_state=random_state, max_depth=m_depth, n_estimators=n, criterion = crit
+                    random_state=random_state, max_depth=max_depth, n_estimators=n, criterion = crit
                 )
     if use_scaler:
         if s == 'ss':

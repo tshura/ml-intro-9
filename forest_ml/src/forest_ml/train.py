@@ -7,6 +7,8 @@ import mlflow
 # import mlflow.sklearn
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import cross_validate
+from sklearn.model_selection import KFold, GridSearchCV
+from sklearn.ensemble import RandomForestClassifier
 
 from .data import get_dataset
 from .pipeline import create_pipeline
@@ -101,11 +103,18 @@ from .pipeline import create_pipeline
     show_default=True,
 )
 @click.option(
-    "--m-depth",
+    "--max-depth",
     default=15,
     type=int,
     show_default=True,
 )
+@click.option(
+    "--use-ncv",
+    default=False,
+    type=bool,
+    show_default=True,
+)
+
 def train(
     dataset_path: Path,
     save_model_path: Path,
@@ -120,8 +129,10 @@ def train(
     s: str,
     n:int, 
     criterion: str,
-    m_depth: int,
-    fs: bool
+    max_depth: int,
+    fs: bool,
+    use_ncv: bool
+
 ) -> None:
     with mlflow.start_run():
         if criterion not in ['gini', 'entropy']:
@@ -130,50 +141,91 @@ def train(
             raise click.BadParameter("model takes values 'logreg' for LogisticRegression or 'rf' for RandomForestClassifier")
         if s not in ['ss', 'mm']:
             raise click.BadParameter("scaler takes values 'ss' for StandardScaler or 'mm' for MinMaxScaler")
-        pipeline = create_pipeline(use_scaler, s, m, max_iter, logreg_c, random_state, n, criterion, m_depth, fs)
-        if use_tsr is not False:
-            features_train, features_val, target_train, target_val = get_dataset(
-                dataset_path,
-                random_state,
-                test_split_ratio,
-                use_tsr
-            )
-            click.echo(f"Features_train shape: {features_train.shape}.")
-            pipeline.fit(features_train, target_train)
-            accuracy = accuracy_score(target_val, pipeline.predict(features_val))
-            click.echo(f"Accuracy: {accuracy}.")
-            dump(pipeline, save_model_path)
-            click.echo(f"Model is saved to {save_model_path}.")
+        pipeline = create_pipeline(use_scaler, s, m, max_iter, logreg_c, random_state, n, criterion, max_depth, fs)
+        if use_ncv is False:
+            if use_tsr is not False:
+                features_train, features_val, target_train, target_val = get_dataset(
+                    dataset_path,
+                    random_state,
+                    test_split_ratio,
+                    use_tsr
+                )
+                click.echo(f"Features_train shape: {features_train.shape}.")
+                pipeline.fit(features_train, target_train)
+                accuracy = accuracy_score(target_val, pipeline.predict(features_val))
+                click.echo(f"Accuracy: {accuracy}.")
+                dump(pipeline, save_model_path)
+                click.echo(f"Model is saved to {save_model_path}.")
 
+            else:
+                features_train, target_train = get_dataset(
+                    dataset_path,
+                    random_state,
+                    test_split_ratio,
+                    use_tsr
+                )
+                scoring = ['accuracy', 'f1_macro', 'roc_auc_ovr']
+                mlflow.log_param("model", pipeline['classifier'])
+                mlflow.log_param("N of folds", foldcnt)
+                mlflow.log_param("use_scaler", use_scaler)
+                mlflow.log_param("scaler", pipeline['scaler'])
+                if fs:
+                    mlflow.log_param("feature_selection", pipeline['feature_selection'])
+                if m == 'logreg':  
+                    mlflow.log_param("max_iter", max_iter)
+                    mlflow.log_param("logreg_c", logreg_c)
+                if m == 'rf':   
+                    mlflow.log_param("max_depth", max_depth)
+                    mlflow.log_param("n_estimators", n)
+                    mlflow.log_param("criterion", criterion)
+                scores  = cross_validate(pipeline, features_train, target_train, cv=foldcnt, scoring=scoring)
+                for i in scoring:
+                    click.echo('{} = {}'.format(i, np.mean(scores['test_' + i])))
+                    mlflow.log_metric(i, np.mean(scores['test_' + i]))
+                        
+                pipeline.fit(features_train, target_train)
+                dump(pipeline, save_model_path)
+                click.echo(f"Model is saved to {save_model_path}.")
         else:
             features_train, target_train = get_dataset(
-                dataset_path,
-                random_state,
-                test_split_ratio,
-                use_tsr
-            )
-            scoring = ['accuracy', 'f1_macro', 'roc_auc_ovr']
-            mlflow.log_param("model", pipeline['classifier'])
-            mlflow.log_param("N of folds", foldcnt)
-            mlflow.log_param("use_scaler", use_scaler)
-            mlflow.log_param("scaler", pipeline['scaler'])
-            if fs:
-                mlflow.log_param("feature_selection", pipeline['feature_selection'])
-            if m == 'logreg':  
-                mlflow.log_param("max_iter", max_iter)
-                mlflow.log_param("logreg_c", logreg_c)
-            if m == 'rf':   
-                mlflow.log_param("max_depth", m_depth)
-                mlflow.log_param("n_estimators", n)
-                mlflow.log_param("criterion", criterion)
-            scores  = cross_validate(pipeline, features_train, target_train, cv=foldcnt, scoring=scoring)
-            for i in scoring:
-                click.echo('{} = {}'.format(i, np.mean(scores['test_' + i])))
-                mlflow.log_metric(i, np.mean(scores['test_' + i]))
-                    
-            pipeline.fit(features_train, target_train)
-            dump(pipeline, save_model_path)
-            click.echo(f"Model is saved to {save_model_path}.")
-           
+                    dataset_path,
+                    random_state,
+                    test_split_ratio,
+                    use_tsr
+                )
+            cv_outer = KFold(n_splits=10, shuffle=True, random_state=random_state)
+            # enumerate splits
+            outer_results = list()
+            print(type(features_train))
+            for train_ix, test_ix in cv_outer.split(features_train):
+                # split data
+                X_train, X_test = features_train.iloc[train_ix, :], features_train.iloc[test_ix, :]
+                y_train, y_test = target_train.iloc[train_ix], target_train.iloc[test_ix]
+                # configure the cross-validation procedure
+                cv_inner = KFold(n_splits=3, shuffle=True, random_state=random_state)
+                # define the model
+                model = RandomForestClassifier(random_state=random_state)
+                # define search space
+                space = dict()
+                # space['fs'] = [False]
+                space['n_estimators'] = [10, 100, 500]
+                space['max_depth'] = [2, 4, 6]
+                # define search
+                search = GridSearchCV(model, space, scoring='accuracy', cv=cv_inner, refit=True)
+                # execute search
+                result = search.fit(X_train, y_train)
+                # get the best performing model fit on the whole training set
+                best_model = result.best_estimator_
+                print(best_model)
+                # evaluate model on the hold out dataset
+                yhat = best_model.predict(X_test)
+                # evaluate the model
+                acc = accuracy_score(y_test, yhat)
+                # store the result
+                outer_results.append(acc)
+                # report progress
+                print('>acc=%.3f, est=%.3f, cfg=%s' % (acc, result.best_score_, result.best_params_))
+            print('Accuracy: %.3f (%.3f)' % (np.mean(outer_results), np.std(outer_results)))
+
                 
     
