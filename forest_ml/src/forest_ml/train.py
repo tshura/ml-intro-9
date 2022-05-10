@@ -228,6 +228,11 @@ def train(
             print('Accuracy: %.3f' % (np.mean(outer_results_acc)))
             print('Roc Auc: %.3f' % (np.mean(outer_results_ras)))
             print('F1 score: %.3f' % (np.mean(outer_results_f1)))
+            mlflow.log_param("model", 'nestedcv ' + pipeline['classifier'])
+            mlflow.log_metric("accuracy", np.mean(outer_results_acc))
+            mlflow.log_metric("f1_macro", np.mean(outer_results_f1))
+            mlflow.log_metric("roc_auc_ovr", np.mean(outer_results_ras))
+            
 
                 
     
