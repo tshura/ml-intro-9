@@ -212,7 +212,7 @@ def train(
                 space = dict()
                 if m == 'rf':
                     space['classifier__n_estimators'] = [100, 200, 500]
-                    space['classifier__max_depth'] = [2, 4, 6]
+                    space['classifier__max_depth'] = [5, 10, 15]
                 elif m == 'logreg': 
                     space['classifier__max_iter'] = [300, 500, 1000]
                     space['classifier__C'] = [0.1, 1, 10]
@@ -243,7 +243,7 @@ def train(
             cv_inner = KFold(n_splits=3, shuffle=True, random_state=random_state)
             if m == 'rf':
                     space['classifier__n_estimators'] = [100, 200, 500]
-                    space['classifier__max_depth'] = [2, 4, 6, 10, 15]
+                    space['classifier__max_depth'] = [5, 10, 15]
             elif m == 'logreg': 
                     space['classifier__max_iter'] = [300, 500, 1000]
                     space['classifier__C'] = [0.1, 1, 10]
