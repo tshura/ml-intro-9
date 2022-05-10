@@ -262,7 +262,7 @@ def train(
                 space["classifier__max_iter"] = [300, 500, 1000]
                 space["classifier__C"] = [0.1, 1, 10]
             click.echo(
-                f"Now we are going to forget about Nested CV and get the best params through GridSearchCV and save this model as our best model."
+                "Now we are going to forget about Nested CV and get the best params through GridSearchCV and save this model as our best model."
             )
             search = GridSearchCV(
                 pipeline, space, scoring="accuracy", cv=cv_inner, refit=True
