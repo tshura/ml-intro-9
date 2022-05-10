@@ -8,7 +8,9 @@ import mlflow
 from sklearn.metrics import accuracy_score, roc_auc_score, f1_score
 from sklearn.model_selection import cross_validate
 from sklearn.model_selection import KFold, GridSearchCV
-from sklearn.ensemble import RandomForestClassifier
+from warnings import simplefilter
+from sklearn.exceptions import ConvergenceWarning
+
 
 from .data import get_dataset
 from .pipeline import create_pipeline
@@ -141,6 +143,7 @@ def train(
             raise click.BadParameter("model takes values 'logreg' for LogisticRegression or 'rf' for RandomForestClassifier")
         if s not in ['ss', 'mm']:
             raise click.BadParameter("scaler takes values 'ss' for StandardScaler or 'mm' for MinMaxScaler")
+        simplefilter("ignore", category=ConvergenceWarning)
         pipeline = create_pipeline(use_scaler, s, m, max_iter, logreg_c, random_state, n, criterion, max_depth, fs)
         if use_ncv is False:
             if use_tsr is not False:
