@@ -6,7 +6,7 @@ This package allows you to train model for Forest Cover Type Prediction.
 ## Usage
 
 1. Clone this repository to your machine.
-2. Download [Heart Disease](https://www.kaggle.com/datasets/johnsmith88/heart-disease-dataset) dataset, save csv locally (default path is *data/heart.csv* in repository's root).
+2. Download [Forest train](https://www.kaggle.com/competitions/forest-cover-type-prediction/data) dataset, save csv locally (default path is *data/train.csv* in repository's root).
 3. Make sure Python 3.9 and [Poetry](https://python-poetry.org/docs/) are installed on your machine (I use Poetry 1.1.13).
 4. Make sure to run all of the commands from the forest_ml folder, so the path for the active directory should look something like this C:\Users\...\forest_ml
 
@@ -73,7 +73,7 @@ poetry run train --use-ncv True
 ```sh
 poetry run mlflow ui
 ```
-MLflow runs completed for Task 8
+MLflow runs completed for Task 8, the best model in terms of accuracy - RandomForestClassifier with feature selection, n_estimator 800, max-depth 20
 ![image](https://user-images.githubusercontent.com/99091756/167840084-b5d62681-7400-4026-be22-a998f05d7675.png)
 
 
